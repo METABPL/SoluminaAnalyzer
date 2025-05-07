@@ -1,5 +1,5 @@
 from analyzer import Analyzer
-from importer.class_model import *
+from SoluminaImport.class_model import *
 from path_utils import enumerate_paths
 import fault
 

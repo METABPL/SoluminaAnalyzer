@@ -1,0 +1,3 @@
+[submodule "SoluminaImport"]
+	path = SoluminaImport
+	url = https://github.com/METABPL/SoluminaImport

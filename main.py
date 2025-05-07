@@ -1,13 +1,12 @@
 import sys
-from importer.load_solumina import load_process
+from SoluminaImport.load_solumina import load_process
 import fault
 from analyzers.resources import ResourceAnalyzer
 from analyzers.path import PathAnalyzer
 from analyzers.decisions import DecisionAnalyzer
 
 def run():
-    analyzers = [ ResourceAnalyzer() ]
-    resource_analyzer = ResourceAnalyzer()
+    analyzers = [ ResourceAnalyzer(), PathAnalyzer(), DecisionAnalyzer() ]
     outfile = "faults.xml"
     fault_list = []
 
