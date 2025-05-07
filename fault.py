@@ -1,6 +1,7 @@
 import io
 from datetime import datetime, timezone
 from hashlib import sha256
+from SoluminaImport.class_model import Process
 
 class Fault:
     def __init__(self, process=None, category=None, fault=None, artifacts=[],
@@ -16,6 +17,12 @@ class Fault:
         self.path = path
         self.outcomes = outcomes
         self.severity = severity
+
+def get_id(n):
+    if isinstance(n, Process):
+        return n.bplProcessId
+    else:
+        return n.bplElementId
 
 def generate_fault_list(fault_list):
     outfile = io.StringIO()
@@ -36,7 +43,7 @@ def generate_fault_list(fault_list):
         if fault.tool is not None:
             print("      <tool>{}</tool>".format(fault.tool), file=string_out)
         if fault.item is not None:
-            print("      <item>{}</item>".format(item), file=string_out)
+            print("      <item>{}</item>".format(fault.item), file=string_out)
         if fault.process is not None:
             print("      <process>{}</process>".format(fault.process.bplProcessName), file=string_out)
         if fault.activity is not None:
@@ -47,14 +54,13 @@ def generate_fault_list(fault_list):
             print("      <faultOutcome>{}</faultOutcome>".format(outcome), file=string_out)
         print("    </faultOutcomes>", file=string_out)
         if len(fault.path) > 0:
-            print("    <faultPath>{}</faultPath>".format(",".join(fault.path)), file=string_out)
+            print("    <faultPath>{}</faultPath>".format(",".join([get_id(n) for n in fault.path])), file=string_out)
         print("    <faultSeverity>{}</faultSeverity>".format(fault.severity), file=string_out)
         print("  </fault>", file=string_out)
         string_contents = string_out.getvalue()
         fault_hash = sha256(string_contents.encode("utf-8")).hexdigest()
-        print("  <fault id=\"TA1_metaBPL_UC1_{}_{}_Fault_{}\">".format(process.tdp, process.bplProcessName,fault_hash), file=outfile)
+        print("  <fault id=\"TA1_metaBPL_UC1_{}_{}_Fault_{}\">".format(fault.process.tdp, fault.process.bplProcessName,fault_hash), file=outfile)
         print(string_contents, file=outfile, end="")
     print("</faultList>", file=outfile)
 
     return outfile.getvalue()
-

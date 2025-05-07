@@ -1,4 +1,4 @@
-from importer.class_model import *
+from SoluminaImport.class_model import *
 
 def enumerate_from(node, path, all_paths, visited, end_node_id):
     path.append(node)

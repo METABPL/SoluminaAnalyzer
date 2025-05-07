@@ -32,7 +32,8 @@ class DecisionAnalyzer(Analyzer):
                             requested.add(target_op)
                             actual.add(node_next.toNode.bplElementName)
 
-                if len(requested) == 1:
+                if len(actual) == 1 and len(requested) == 1:
+                    reported.add(id)
                     fault_list.append(
                         fault.Fault(process=model,
                                 category="Requirements",
@@ -42,7 +43,8 @@ class DecisionAnalyzer(Analyzer):
                                 severity="high",
                                 outcomes=["Work instructions tell user to go to {}, but process links to {}".format(
                                     requested.pop(), actual.pop())]))
-                elif len(requested) == 2:
+                elif len(actual) == 2 and len(requested) == 1:
+                    reported.add(id)
                     fault_list.append(
                         fault.Fault(process=model,
                                 category="Requirements",
@@ -50,6 +52,18 @@ class DecisionAnalyzer(Analyzer):
                                 activity=curr_path[i].bplElementId,
                                 path=curr_path[:i + 1],
                                 severity="high",
-                                outcomes=["Work instructions tell user to go to {} and {}, but process links to {} and {}".format(
-                                    requested.pop(), requested.pop(), actual.pop(),
+                                outcomes=["Work instructions tell user to go to {} in both cases, but process links to {} and {}".format(
+                                    requested.pop(), actual.pop(),
                                     actual.pop())]))
+                elif len(actual) == 2 and len(requested) == 2:
+                    reported.add(id)
+                    fault_list.append(
+                        fault.Fault(process=model,
+                                    category="Requirements",
+                                    fault="Inconsistent work instructions",
+                                    activity=curr_path[i].bplElementId,
+                                    path=curr_path[:i + 1],
+                                    severity="high",
+                                    outcomes=["Work instructions tell user to go to {} and {}, but process links to {} and {}".format(
+                                        requested.pop(), requested.pop(), actual.pop(),
+                                        actual.pop())]))
