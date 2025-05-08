@@ -19,6 +19,10 @@ class ResourceAnalyzer(Analyzer):
 
         used_tools = {}
         used_items = {}
+        max_tool_used = {}
+        max_tool_path = {}
+        max_item_used = {}
+        max_item_path = {}
 
         paths = enumerate_paths(model)
 
@@ -99,3 +103,57 @@ class ResourceAnalyzer(Analyzer):
                                                     res_req.quantity, res_req.name)]))
                 if found_faults:
                     break
+            for (tool, quantity) in used_tools.items():
+                if quantity < 0:
+                    continue
+                if tool not in max_tool_used:
+                    max_tool_used[tool] = quantity
+                    max_tool_path[tool] = curr_path
+                elif quantity > max_tool_used[tool]:
+                    max_tool_used[tool] = quantity
+                    max_tool_path[tool] = curr_path
+
+            for (item, quantity) in used_items.items():
+                if quantity < 0:
+                    continue
+                if item not in max_item_used:
+                    max_item_used[item] = quantity
+                    max_item_path[item] = curr_path
+                elif quantity > max_item_used[item]:
+                    max_item_used[item] = quantity
+                    max_item_path[item] = curr_path
+
+        for (tool, quantity) in max_tool_used.items():
+            if quantity < 0:
+                continue
+            if tool not in bom_tools:
+                continue
+            if quantity < bom_tools[tool]:
+                fault_list.append(
+                    fault.Fault(process=model,
+                                category="Resource Usage",
+                                fault="Resource leakage",
+                                tool=tool,
+                                activity=max_tool_path[tool][-1].bplElementId,
+                                path=max_tool_path[tool],
+                                severity="medium",
+                                outcomes=["Only a maximum of {} {} consumed but BOM specifies {}".format(
+                                    tool, quantity, bom_tools[tool])]))
+
+        for (item, quantity) in max_item_used.items():
+            if quantity < 0:
+                continue
+            if item not in bom_items:
+                continue
+            if quantity < bom_items[item]:
+                fault_list.append(
+                    fault.Fault(process=model,
+                                category="Resource Usage",
+                                fault="Resource leakage",
+                                item=item,
+                                activity=max_item_path[item][-1].bplElementId,
+                                path=max_item_path[item],
+                                severity="medium",
+                                outcomes=["Only a maximum of {} {} consumed but BOM specifies {}".format(
+                                    item, quantity, bom_items[item])]))
+
