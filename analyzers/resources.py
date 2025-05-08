@@ -47,7 +47,7 @@ class ResourceAnalyzer(Analyzer):
                                     reported_items.add(res_req.bplElementUUID)
                                     fault_list.append(
                                         fault.Fault(process=model,
-                                                    category="Resource Usage",
+                                                    category="Resource usage",
                                                     fault="Resource leakage",
                                                     tool=res_req.name,
                                                     activity=curr_path[i].bplElementId,
@@ -60,7 +60,7 @@ class ResourceAnalyzer(Analyzer):
                                 reported_items.add(res_req.bplElementUUID)
                                 fault_list.append(
                                     fault.Fault(process=model,
-                                                category="Resource Usage",
+                                                category="Resource usage",
                                                 fault="Resource leakage",
                                                 tool=res_req.name,
                                                 activity=curr_path[i].bplElementId,
@@ -80,7 +80,7 @@ class ResourceAnalyzer(Analyzer):
                                 reported_items.add(res_req.bplElementUUID)
                                 fault_list.append(
                                     fault.Fault(process=model,
-                                                category="Resource Usage",
+                                                category="Resource usage",
                                                 fault="Resource leakage",
                                                 tool=res_req.name,
                                                 activity=curr_path[i].bplElementId,
@@ -93,7 +93,7 @@ class ResourceAnalyzer(Analyzer):
                                 reported_items.add(res_req.bplElementUUID)
                                 fault_list.append(
                                     fault.Fault(process=model,
-                                                category="Resource Usage",
+                                                category="Resource usage",
                                                 fault="Resource leakage",
                                                 tool=res_req.name,
                                                 activity=curr_path[i].bplElementId,
@@ -131,7 +131,7 @@ class ResourceAnalyzer(Analyzer):
             if quantity < bom_tools[tool]:
                 fault_list.append(
                     fault.Fault(process=model,
-                                category="Resource Usage",
+                                category="Resource usage",
                                 fault="Resource leakage",
                                 tool=tool,
                                 activity=max_tool_path[tool][-1].bplElementId,
@@ -148,7 +148,7 @@ class ResourceAnalyzer(Analyzer):
             if quantity < bom_items[item]:
                 fault_list.append(
                     fault.Fault(process=model,
-                                category="Resource Usage",
+                                category="Resource usage",
                                 fault="Resource leakage",
                                 item=item,
                                 activity=max_item_path[item][-1].bplElementId,

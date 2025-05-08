@@ -1,4 +1,5 @@
 import sys
+import re
 from SoluminaImport.load_solumina import load_process
 import fault
 from analyzers.resources import ResourceAnalyzer
@@ -6,6 +7,7 @@ from analyzers.path import PathAnalyzer
 from analyzers.decisions import DecisionAnalyzer
 from analyzers.privs import PrivilegeAnalyzer
 
+tdp_pattern = re.compile(".*/([Tt][Dd][Pp][0-9]*)/.*")
 def run():
     analyzers = [ ResourceAnalyzer(), PathAnalyzer(), DecisionAnalyzer(),
                   PrivilegeAnalyzer(),]
@@ -18,7 +20,12 @@ def run():
             outfile = sys.argv[i+1]
             i += 1
         else:
+            tdp = ""
+            matches = tdp_pattern.match(sys.argv[i])
+            if matches:
+                tdp = matches.group(1)
             model = load_process(sys.argv[i])
+            model.tdp = tdp.upper()
             for analyzer in analyzers:
                 analyzer.analyze(model, fault_list)
         i += 1
