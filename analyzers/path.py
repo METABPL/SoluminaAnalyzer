@@ -10,13 +10,17 @@ class PathAnalyzer(Analyzer):
     def analyze(self, model, fault_list):
         paths = enumerate_paths(model)
 
+        reported = set()
         for curr_path in paths:
             if not isinstance(curr_path[-1], EndEvent):
-                fault_list.append(
-                    fault.Fault(process=model,
-                                category="Execution sequence",
-                                fault="No termination - Live lock",
-                                activity=curr_path[-1].bplElementId,
-                                path=curr_path,
-                                severity="high",
-                                outcomes=["Execution sequence has endless loop"]))
+                id = curr_path[-1].bplElementId
+                if id not in reported:
+                    reported.add(id)
+                    fault_list.append(
+                        fault.Fault(process=model,
+                                    category="Execution sequence",
+                                    fault="No termination - Live lock",
+                                    activity=curr_path[-1].bplElementId,
+                                    path=curr_path,
+                                    severity="high",
+                                    outcomes=["Execution sequence has endless loop"]))

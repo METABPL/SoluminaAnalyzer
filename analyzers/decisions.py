@@ -46,6 +46,7 @@ class DecisionAnalyzer(Analyzer):
                                     outcomes=[
                                         "No work instructions for decision and no destinations for decision"]))
                 elif len(requested) == 0 and len(actual) == 1:
+                    reported.add(id)
                     fault_list.append(
                         fault.Fault(process=model,
                                     category="Requirements",
@@ -57,6 +58,7 @@ class DecisionAnalyzer(Analyzer):
                                         "No work instructions for decision and only destination is {}".format(
                                             actual.pop())]))
                 elif len(requested) == 0 and len(actual) == 2:
+                    reported.add(id)
                     fault_list.append(
                         fault.Fault(process=model,
                                     category="Requirements",
@@ -69,6 +71,7 @@ class DecisionAnalyzer(Analyzer):
                                             actual.pop(), actual.pop())]))
 
                 elif len(requested) == 1 and len(actual) == 1:
+                    reported.add(id)
                     fault_list.append(
                         fault.Fault(process=model,
                                     category="Requirements",
@@ -105,6 +108,7 @@ class DecisionAnalyzer(Analyzer):
                                             requested.pop(), requested.pop(),
                                             actual.pop())]))
                 elif len(requested) == 2 and len(actual) == 2 and len(requested.difference(actual)) > 0:
+                    reported.add(id)
                     fault_list.append(
                         fault.Fault(process=model,
                                     category="Requirements",
