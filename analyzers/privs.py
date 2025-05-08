@@ -34,7 +34,12 @@ class PrivilegeAnalyzer(Analyzer):
             for i in range(0, len(curr_path)):
                 node = curr_path[i]
                 if isinstance(node, BuyoffTask):
+                    id = node.bplElementUUID
+                    if id in reported_items:
+                        continue
+
                     if node.buyoffType is None or node.buyoffType == "":
+                        reported_items.add(id)
                         fault_list.append(
                             fault.Fault(process=model,
                                         category="Requirements",
@@ -44,6 +49,7 @@ class PrivilegeAnalyzer(Analyzer):
                                         severity="high",
                                         outcomes=["Buyoff has empty type, so there is no corresponding buyoff privilege"]))
                     elif "BUYOFF_"+node.buyoffType not in privileges:
+                        reported_items.add(id)
                         fault_list.append(
                             fault.Fault(process=model,
                                         category="Requirements",

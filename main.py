@@ -4,9 +4,11 @@ import fault
 from analyzers.resources import ResourceAnalyzer
 from analyzers.path import PathAnalyzer
 from analyzers.decisions import DecisionAnalyzer
+from analyzers.privs import PrivilegeAnalyzer
 
 def run():
-    analyzers = [ ResourceAnalyzer(), PathAnalyzer(), DecisionAnalyzer() ]
+    analyzers = [ ResourceAnalyzer(), PathAnalyzer(), DecisionAnalyzer(),
+                  PrivilegeAnalyzer(),]
     outfile = "faults.xml"
     fault_list = []
 
