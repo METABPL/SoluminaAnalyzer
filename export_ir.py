@@ -517,8 +517,10 @@ class ExportIR:
             self.connect_resources(child, nodes, edges, connect_with_id)
 
     def main(self):
-        filename = sys.argv[1]
+        for filename in sys.argv[1:]:
+            self.generate_ir(filename)
 
+    def generate_ir(self, filename):
         process = load_process(filename)
 
         if process is None or process.bplProcessName == "":
