@@ -122,24 +122,16 @@ class ExportIR:
             for child in node.bplElements:
                 self.assign_uuids(child, assigned)
 
-    def all_children(self, node):
-        children = []
-        for value in node.__dict__.values():
-            if isinstance(value, list):
-                children = children + value
-        return children
-
-    def convert_node(self, node, nodes, parent, node_map):
+    def convert_node(self, node, nodes, node_map, edges, edge_map, conn_map):
         type_name = type(node).__name__
 
         node_uuid = node.bplElementUUID
-        if node_uuid in self.converted:
-            return
 
         properties = []
 
         if type_name in type_name_map:
-            self.converted.add(node_uuid)
+            if node_uuid in node_map:
+                return
             ir_type_name = type_name_map[type_name]
 
             args = {"type": ir_type_name, "uuid": node_uuid}
@@ -254,8 +246,11 @@ class ExportIR:
                             elif isinstance(attr_value, float):
                                 properties.append(FlowNodeProperty(name=ir_name, value=attr_value, type="float"))
 
-            if parent is not None:
-                args["processRef"] = parent["id"]
+            if node.parent is not None:
+                if isinstance(node.parent, Process):
+                    args["processRef"] = node.parent.bplProcessId
+                else:
+                    args["processRef"] = node.parent.bplElementId
 
             if len(properties) > 0:
                 args["properties"] = properties
@@ -267,219 +262,121 @@ class ExportIR:
                 new_node = DataNode(**args)
 
             nodes.append(new_node)
-            if hasattr(node, "id"):
-                node_id = node.id
-                if node_id is None:
-                    node_id = node_uuid
-                node_map[node_id] = new_node
-            else:
-                node_map[node_uuid] = new_node
+#            if hasattr(node, "id"):
+#                node_id = node.id
+#                if node_id is None:
+#                    node_id = node_uuid
+#                node_map[node_id] = new_node
+#            else:
+#                node_map[node_uuid] = new_node
+            node_map[node_uuid] = new_node
 
-            if parent is None and isinstance(node, Process):
-                parent = { "uuid": getattr(node, "bplElementUUID"),
-                           "id": getattr(node, "bplProcessId") }
+            if hasattr(node, "bplElements"):
+                start_event = None
+                for child in node.bplElements:
+                    if isinstance(child, StartEvent):
+                        start_event = child
+                        break
+                if start_event is not None:
+                    edge_uuid = getattr(node, "bplElementUUID")+"_to_start"
 
-            if isinstance(node, SubProcess):
-                parent = { "uuid": getattr(node, "bplElementUUID"),
-                           "id": getattr(node, "bplElementId") }
+                    attrs = {"id": edge_uuid, "type": FlowEdgeTypeEnum.PROCESS_FLOW}
+                    attrs["sourceRef"] = node.bplElementUUID
+                    attrs["targetRef"] = start_event.bplElementUUID
 
-            for child in self.all_children(node):
-                self.convert_node(child, nodes, parent, node_map)
-        else:
-            if type_name not in connection_map:
-                print("Unable to convert type: {}".format(type_name))
+                    print("Creating {}".format(type_name))
+                    edges.append(FlowEdge(**attrs))
+                    edge_map[node.bplElementUUID] = node
+                    edge_map[start_event.bplElementUUID] = start_event
 
-            if parent is None and isinstance(node, Process):
-                parent = {"uuid": self.core.get_attribute(node, "bplElementUUID"),
-                          "id": self.core.get_attribute(node, "bplProcessId")}
-            if isinstance(node, SubProcess):
-                parent = {"uuid": self.core.get_attribute(node, "bplElementUUID"),
-                          "id": self.core.get_attribute(node, "bplElementId")}
+                    self.convert_node(start_event, nodes, node_map, edges, edge_map, conn_map)
+                    work_queue = start_event.nexts
+                    processed = set()
+                    while len(work_queue) > 0:
+                        next_connector = work_queue.pop()
+                        conn_map.add(next_connector.bplElementUUID)
+                        self.convert_node(next_connector, nodes, node_map, edges, edge_map, conn_map)
+                        for next_node in next_connector.toNode.nexts:
+                            if next_node.bplElementUUID not in conn_map:
+                                work_queue.append(next_node)
 
-            for child in self.all_children(node):
-                self.convert_node(child, nodes, parent, node_map)
+#            for child in self.all_children(node):
+#                self.convert_node(child, nodes, parent, node_map)
+        elif type_name in connection_map:
+                from_node = getattr(node, "fromNode")
+                if from_node.bplElementUUID not in node_map:
+                    self.convert_node(from_node, nodes, node_map, edges, edge_map, conn_map)
+                to_node = getattr(node, "toNode")
+                if to_node.bplElementUUID not in node_map:
+                    self.convert_node(to_node, nodes, node_map, edges, edge_map, conn_map)
 
-    def convert_input_output(self, parent, node, nodes, edges, connect_with_id):
-        node_uuid = node.bplElementUUID
-        if node_uuid in self.converted:
-            return
-        self.converted.add(node_uuid)
+                if hasattr(from_node, "bplElementId"):
+                    from_id = getattr(from_node, "bplElementId")
+                else:
+                    from_id = None
+                from_uuid = getattr(from_node, "bplElementUUID")
+                if from_id is None:
+                    from_id = from_uuid
+                if hasattr(to_node, "bplElementId"):
+                    to_id = getattr(to_node, "bplElementId")
+                else:
+                    to_id = None
+                to_uuid = getattr(to_node, "bplElementUUID")
+                if to_id is None:
+                    to_id = to_uuid
 
-        type_name = type(node).__name__
-        node_name = getattr(node, "name")
+                edge_uuid = getattr(node, "bplElementUUID")
 
-        print("Looking for input output in {} {}".format(type_name, node_name))
-
-        if type_name == "InputParameter" or type_name == "OutputParameter":
-            param_id = getattr(node, "bplElementId")
-            param_uuid = getattr(node, "bplElementUUID")
-            if param_id is None:
-                param_id = param_uuid
-            args = {"uuid": param_uuid, "type": "InputOutputBinding", "name": node_name, "id": node_name }
-            for webgme_attr, ir_attr in data_attr_map.items():
-                if hasattr(node, webgme_attr):
-                    attr = getattr(node, webgme_attr)
-                    if attr is not None:
-                        if webgme_attr == "script":
-                            if isinstance(attr, dict):
-                                args[ir_attr] = attr["#text"]
-                            else:
-                                args[ir_attr] = attr
-                        else:
-                            args[ir_attr] = attr
-                    else:
-                        print("In node type {} can't find attr {}".format(type_name, webgme_attr))
-            if args["name"] is None or args["name"] == "":
-                args["name"] = node_name
-            elif args["id"] is None or args["id"] == "":
-                args["id"] = node_name
-
-            print("Creating data node with {}".format(args))
-            nodes.append(DataNode(**args))
-
-            node_id = getattr(parent, "bplElementId")
-            node_uuid = getattr(parent, "bplElementUUID")
-            if node_id is None:
-                node_id = node_uuid
-
-            if type_name == "InputParameter":
-                edge_type = FlowEdgeTypeEnum.INPUT_PARAMETER
-            else:
-                edge_type = FlowEdgeTypeEnum.OUTPUT_PARAMETER
-
-            if connect_with_id:
-                edges.append(FlowEdge(id=str(uuid.uuid4()), type=edge_type,
-                                      sourceRef=node_id, targetRef=param_id))
-            else:
-                edges.append(FlowEdge(id=str(uuid.uuid4()), type=edge_type,
-                                      sourceRef=node_uuid, targetRef=param_uuid))
-
-        for child in self.all_children(node):
-                self.convert_input_output(node, child, nodes, edges, connect_with_id)
-
-    def convert_edges(self, node, edges, edge_map, connect_with_id):
-        node_uuid = node.bplElementUUID
-        if node_uuid in self.converted:
-            return
-        self.converted.add(node_uuid)
-
-        if self.is_process(node):
-            for child in node.bplElements:
-                if type(child).__name__ == "StartEvent":
-                    if hasattr(node, "bplElementId"):
-                        from_id = getattr(node, "bplElementId")
-                    else:
-                        from_id = None
-                    from_uuid = getattr(node, "bplElementUUID")
-                    if from_id is None:
-                        from_id = from_uuid
-                    if hasattr(child, "bplElementId"):
-                        to_id = getattr(child, "bplElementId")
-                    else:
-                        to_id = None
-                    to_uuid = getattr(child, "bplElementUUID")
-                    if to_id is None:
-                        to_id = to_uuid
-
-                    if connect_with_id:
-                        edges.append(FlowEdge(id=str(uuid.uuid4()), type=FlowEdgeTypeEnum.PROCESS_FLOW,
-                                              sourceRef=from_id, targetRef=to_id))
-                    else:
-                        edges.append(FlowEdge(id=str(uuid.uuid4()), type=FlowEdgeTypeEnum.PROCESS_FLOW,
-                                              sourceRef=from_uuid, targetRef=to_uuid))
-
-                    for grandchild in child.nexts:
-                        self.convert_edges(grandchild, edges, edge_map, connect_with_id)
-            return
-
-        type_name = type(node).__name__
-
-        if type_name in connection_map:
-            from_node = getattr(node, "fromNode")
-            to_node = getattr(node, "toNode")
-
-            if hasattr(from_node, "bplElementId"):
-                from_id = getattr(from_node, "bplElementId")
-            else:
-                from_id = None
-            from_uuid = getattr(from_node, "bplElementUUID")
-            if from_id is None:
-                from_id = from_uuid
-            if hasattr(to_node, "bplElementId"):
-                to_id = getattr(to_node, "bplElementId")
-            else:
-                to_id = None
-            to_uuid = getattr(to_node, "bplElementUUID")
-            if to_id is None:
-                to_id = to_uuid
-
-            edge_uuid = getattr(node, "bplElementUUID")
-
-            attrs = { "id": edge_uuid, "type": connection_map[type_name] }
-            if connect_with_id:
-                attrs["sourceRef"] = from_id
-                attrs["targetRef"] = to_id
-            else:
+                attrs = {"id": edge_uuid, "type": connection_map[type_name]}
                 attrs["sourceRef"] = from_uuid
                 attrs["targetRef"] = to_uuid
 
-            if hasattr(node, "conditionExpression"):
-                conditionExpression = getattr(node, "conditionExpression")
-            else:
-                conditionExpression = None
-            if conditionExpression is not None and conditionExpression != "":
-                attrs["conditionExpression"] = conditionExpression
+                if hasattr(node, "conditionExpression"):
+                    conditionExpression = getattr(node, "conditionExpression")
+                else:
+                    conditionExpression = None
+                if conditionExpression is not None and conditionExpression != "":
+                    attrs["conditionExpression"] = conditionExpression
 
-            properties = []
+                properties = []
 
-            if hasattr(node, "conditionTarget"):
-                conditionTarget = getattr(node, "conditionTarget")
-            else:
-                conditionTarget = None
-            if conditionTarget is not None and conditionTarget != "":
-                properties.append(FlowNodeProperty(name="conditionTarget", value=conditionTarget, type="str"))
+                if hasattr(node, "conditionTarget"):
+                    conditionTarget = getattr(node, "conditionTarget")
+                else:
+                    conditionTarget = None
+                if conditionTarget is not None and conditionTarget != "":
+                    properties.append(FlowNodeProperty(name="conditionTarget", value=conditionTarget, type="str"))
 
-            if len(properties) > 0:
-                attrs["properties"] = properties
+                if len(properties) > 0:
+                    attrs["properties"] = properties
 
-            print("Creating {}".format(type_name))
-            edges.append(FlowEdge(**attrs))
-            edge_map[from_id] = from_node
-            edge_map[to_id] = to_node
-
-            self.convert_edges(to_node, edges, edge_map, connect_with_id)
-            for child in to_node.nexts:
-                self.convert_edges(child, edges, edge_map, connect_with_id)
-
+                print("Creating {}".format(type_name))
+                edges.append(FlowEdge(**attrs))
+                edge_map[from_id] = from_node
+                edge_map[to_id] = to_node
         else:
-            if isinstance(node, ConnectionBase):
-                print("{} missing from connection map".format(type_name))
-
-    def connect_resources(self, node, nodes, edges, connect_with_id):
-        node_uuid = node.bplElementUUID
-        if node_uuid in self.converted:
-            return
-        self.converted.add(node_uuid)
-
-        if hasattr(node, "bplElementId"):
-            from_id = getattr(node, "bplElementId")
-        else:
-            from_id = None
-        from_uuid = getattr(node, "bplElementUUID")
-        if from_id is None:
-            from_id = from_uuid
-
-        for child in self.all_children(node):
-            child_type = type(child).__name__
-
-            #            if child_type == "ResourceRequirement":
-            #                for grandchild in self.core.load_children(child):
-            #                    grandchild_type = self.core.get_attribute(self.core.get_meta_type(grandchild), "name")
-            #                    to_uuid = self.core.get_attribute(grandchild, "bplElementUUID")
-            #                    if grandchild_type == "ResourceRequirement":
-            #                        edges.append(FlowEdge(id=str(uuid.uuid4()), type=FlowEdgeTypeEnum.RESOURCE_ROLE,
-            #                                              sourceRef=from_uuid, targetRef=to_uuid))
-            if isinstance(child, ResourceBase):
+            if hasattr(node, "bplElements"):
+                start_event = None
+                for child in node.bplElements:
+                    if isinstance(child, StartEvent):
+                        start_event = child
+                        break
+                if start_event is not None:
+                    work_queue = [start_event]
+                    processed = set()
+                    while len(work_queue) > 0:
+                        work_item = work_queue.pop()
+                        self.convert_node(work_item, nodes, work_item.parent, node_map, conn_map)
+                        for item in [n.toNode for n in work_item.nexts]:
+                            if item.bplElementUUID not in processed:
+                                processed.add(item.bplElementUUID)
+                                work_queue.append(item)
+#            for child in self.all_children(node):
+#                self.convert_node(child, nodes, parent, node_map)
+        if hasattr(node, "resourceRequirements"):
+            for child in node.resourceRequirements:
+                child_type = type(child).__name__
+                if isinstance(child, ResourceBase):
                     if child_type not in resource_type_map:
                         print("Unknown child type: {}".format(child_type))
                         continue
@@ -494,27 +391,22 @@ class ExportIR:
                     args = { "uuid": to_uuid, "type": resource_type_map[child_type], "name": child_name }
 
                     keyvalues = []
-                    for kvp in self.all_children(child):
-                        kvp_name = getattr(kvp, "name")
-                        kvp_value = getattr(kvp, "value")
-                        keyvalues.append(ResourceParameter(name=kvp_name, type="str", value=kvp_value))
+                    if hasattr(child, "keyValues"):
+                        for kvp in child.keyValues:
+                            kvp_name = getattr(kvp, "name")
+                            kvp_value = getattr(kvp, "value")
+                            keyvalues.append(ResourceParameter(name=kvp_name, type="str", value=kvp_value))
 
-                    keyvalues.append(ResourceParameter(name="description", type="str",
-                                                       value=getattr(child, "name")))
-                    keyvalues.append(ResourceParameter(name="quantity", type="float",
-                                                       value=float(getattr(child, "quantity"))))
+                        keyvalues.append(ResourceParameter(name="description", type="str",
+                                                           value=getattr(child, "name")))
+                        keyvalues.append(ResourceParameter(name="quantity", type="float",
+                                                           value=float(getattr(child, "quantity"))))
                     args["resourceParameters"] = keyvalues
                     print("Creating resource of type: ",args)
                     nodes.append(ResourceNode(**args))
 
-                    if connect_with_id:
-                        edges.append(FlowEdge(id=str(uuid.uuid4()), type=FlowEdgeTypeEnum.RESOURCE_ROLE,
-                                              sourceRef=from_id, targetRef=to_uuid))
-                    else:
-                        edges.append(FlowEdge(id=str(uuid.uuid4()), type=FlowEdgeTypeEnum.RESOURCE_ROLE,
-                                              sourceRef=from_uuid, targetRef=to_uuid))
-
-            self.connect_resources(child, nodes, edges, connect_with_id)
+                    edges.append(FlowEdge(id=str(uuid.uuid4()), type=FlowEdgeTypeEnum.RESOURCE_ROLE,
+                                          sourceRef=node_uuid, targetRef=to_uuid))
 
     def main(self):
         for filename in sys.argv[1:]:
@@ -534,13 +426,7 @@ class ExportIR:
         edges = []
         edge_map = {}
         node_map = {}
-        self.convert_node(process, nodes, None, node_map)
-        self.converted = set()
-        self.convert_edges(process, edges, edge_map, connect_with_id)
-        self.converted = set()
-        self.connect_resources(process, nodes, edges, connect_with_id)
-        self.converted = set()
-        self.convert_input_output(process, process, nodes, edges, connect_with_id)
+        self.convert_node(process, nodes, node_map, edges, edge_map, set())
 
         processed_edges = set()
         roots = set()

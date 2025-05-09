@@ -129,6 +129,9 @@ class ResourceAnalyzer(Analyzer):
             if tool not in bom_tools:
                 continue
             if quantity < bom_tools[tool]:
+                if tool in reported_items:
+                    continue
+                reported_items.add(tool)
                 fault_list.append(
                     fault.Fault(process=model,
                                 category="Resource usage",
@@ -146,6 +149,9 @@ class ResourceAnalyzer(Analyzer):
             if item not in bom_items:
                 continue
             if quantity < bom_items[item]:
+                if item in reported_items:
+                    continue
+                reported_items.add(item)
                 fault_list.append(
                     fault.Fault(process=model,
                                 category="Resource usage",

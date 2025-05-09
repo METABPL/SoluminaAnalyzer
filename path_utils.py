@@ -1,4 +1,5 @@
 from SoluminaImport.class_model import *
+from itertools import permutations
 
 def _ext_enumerate_from(node, path, all_paths, visited, end_node_id):
     path.append(node)
@@ -26,16 +27,21 @@ def _ext_enumerate_from(node, path, all_paths, visited, end_node_id):
         if start_node is not None:
             _ext_enumerate_from(start_node, path, all_paths, visited, end_node_id)
     if isinstance(node, Parallel) and len(node.nexts) > 1:
-        end_par = None
-        for par_next in node.nexts:
-            _ext_enumerate_from(par_next, path, all_paths, visited, end_node_id)
-            end_par = path[-1]
-            path.pop()
-        path.append(end_par)
-        if len(end_par.nexts) == 1:
-            _ext_enumerate_from(end_par.nexts[0], path, all_paths, visited, end_node_id)
-    elif isinstance(node, Parallel):
-        print("????")
+#        next_perms = [node.nexts]
+        next_perms = list(permutations(node.nexts))
+        for next_perm in next_perms:
+            path_copy = path[:]
+            visited_copy = visited.copy()
+            end_par = None
+            for par_next in next_perm:
+                _ext_enumerate_from(par_next, path_copy, all_paths, visited_copy, end_node_id)
+                end_par = path_copy[-1]
+                path_copy.pop()
+            path_copy.append(end_par)
+            if hasattr(end_par, "nexts") and len(end_par.nexts) == 1:
+                _ext_enumerate_from(end_par.nexts[0], path_copy, all_paths, visited_copy, end_node_id)
+            else:
+                pass
     elif isinstance(node, Exclusive):
         for exc_next in node.nexts:
             _ext_enumerate_from(exc_next, path[:], all_paths, visited.copy(), end_node_id)
@@ -63,10 +69,12 @@ def _ext_enumerate_all_nodes(node, nodes, visited):
         return
 
     visited.add(id)
-    for elem in node.bplElements:
-        _ext_enumerate_all_nodes(elem, nodes, visited)
+    if hasattr(node, "bplElements"):
+        for elem in node.bplElements:
+            _ext_enumerate_all_nodes(elem, nodes, visited)
 
 def enumerate_all(start):
     visited = set()
     nodes = []
     _ext_enumerate_all_nodes(start, nodes, visited)
+    return nodes
