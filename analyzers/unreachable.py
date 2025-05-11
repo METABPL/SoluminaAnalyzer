@@ -8,7 +8,6 @@ class ReachabilityAnalyzer(Analyzer):
         super().__init__()
 
     def analyze(self, model, fault_list):
-        print("Analyzing {}".format(model.source))
         paths = enumerate_paths(model)
 
         nodes = set()
