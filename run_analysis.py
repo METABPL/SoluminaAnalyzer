@@ -3,14 +3,17 @@ import re
 from SoluminaImport.load_solumina import load_process
 import fault
 from analyzers.resources import ResourceAnalyzer
-from analyzers.path import PathAnalyzer
+from analyzers.loop import LoopAnalyzer
 from analyzers.decisions import DecisionAnalyzer
 from analyzers.privs import PrivilegeAnalyzer
+from analyzers.unreachable import ReachabilityAnalyzer
+from analyzers.limits import LimitsAnalyzer
 
 tdp_pattern = re.compile(".*/([Tt][Dd][Pp][0-9]*)/.*")
 def run():
-    analyzers = [ ResourceAnalyzer(), PathAnalyzer(), DecisionAnalyzer(),
-                  PrivilegeAnalyzer(),]
+    analyzers = [ResourceAnalyzer(), LoopAnalyzer(), DecisionAnalyzer(),
+                 PrivilegeAnalyzer(), ReachabilityAnalyzer(),
+                 LimitsAnalyzer(),]
     outfile = "faults.xml"
     fault_list = []
 
