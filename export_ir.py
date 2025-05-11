@@ -83,6 +83,7 @@ property_map = {
     "Gateway2Activity":
         {
             "conditionTarget": "conditionTarget",
+            "conditionExpression": "conditionExpression",
         }
 }
 resource_type_map = {
