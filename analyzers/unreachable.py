@@ -47,7 +47,7 @@ class ReachabilityAnalyzer(Analyzer):
                 fault.Fault(process=model,
                             category="Execution sequence",
                             fault="No execution",
-                            activity=longest_path[0],
+                            activity=longest_path[0].bplElementId,
                             path=longest_path,
                             severity="medium",
                             outcomes=["Node path is unreachable"]))
