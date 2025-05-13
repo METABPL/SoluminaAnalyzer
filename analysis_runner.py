@@ -1,4 +1,4 @@
-import fault
+from fault import generate_fault_list
 from analyzers.resources import ResourceAnalyzer
 from analyzers.loop import LoopAnalyzer
 from analyzers.decisions import DecisionAnalyzer
@@ -27,5 +27,5 @@ class AnalysisRunner:
             for analyzer in self.analyzers:
                 analyzer.analyze(model, fault_list)
 
-        return fault.generate_fault_list(fault_list)
+        return generate_fault_list(fault_list)
 
