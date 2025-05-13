@@ -1,7 +1,6 @@
 import sys
 import re
 from SoluminaImport.load_solumina import load_process
-import fault
 from analysis_runner import AnalysisRunner
 from analyzers.resources import ResourceAnalyzer
 from analyzers.loop import LoopAnalyzer
